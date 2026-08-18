@@ -1,0 +1,14 @@
+{
+  "name": "atlas-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "db:push": "npm --prefix backend run prisma:push",
+    "db:seed": "npm --prefix backend run prisma:seed",
+    "test": "npm --prefix backend run test",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+  }
+}

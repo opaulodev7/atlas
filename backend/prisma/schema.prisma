@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  profile      Profile?
+  lifeAreas    LifeArea[]
+  goals        Goal[]
+  projects     Project[]
+  tasks        Task[]
+  habits       Habit[]
+  habitLogs    HabitLog[]
+  checkIns     DailyCheckIn[]
+  journal      JournalEntry[]
+  decisions    Decision[]
+  plans        Plan[]
+  aiChats      AIConversation[]
+  timeline     TimelineEvent[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profession          String?
+  bio                 String?
+  personalGoals       String?
+  values              String?
+  interests           String?
+  skills              String?
+  onboardingCompleted Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("profiles")
+}
+
+model LifeArea {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String   @default("#3b82f6")
+  icon        String?
+  status      String   @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goals       Goal[]
+  projects    Project[]
+  tasks       Task[]
+  habits      Habit[]
+  journal     JournalEntry[]
+
+  @@index([userId])
+  @@map("life_areas")
+}
+
+model Goal {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areaId      String?
+  area        LifeArea? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String    @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED, PAUSED, CANCELLED
+  progress    Int       @default(0) // 0-100
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projects    Project[]
+  tasks       Task[]
+  plans       Plan[]
+
+  @@index([userId])
+  @@index([areaId])
+  @@map("goals")
+}
+
+model Project {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String?
+  goal        Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  areaId      String?
+  area        LifeArea? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  status      String    @default("PLANNING") // PLANNING, ACTIVE, PAUSED, COMPLETED, CANCELLED
+  progress    Int       @default(0) // 0-100
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks       Task[]
+
+  @@index([userId])
+  @@index([goalId])
+  @@map("projects")
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String?
+  goal        Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  areaId      String?
+  area        LifeArea? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  deadline    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([goalId])
+  @@index([projectId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Habit {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areaId      String?
+  area        LifeArea?  @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  name        String
+  description String?
+  frequency   String     @default("DAILY") // DAILY, WEEKDAYS, WEEKENDS, WEEKLY
+  target      String     @default("1x ao dia")
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  logs        HabitLog[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+model HabitLog {
+  id        String   @id @default(uuid())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String   // Format YYYY-MM-DD
+  completed Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+  @@map("habit_logs")
+}
+
+model DailyCheckIn {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             String   // Format YYYY-MM-DD
+  mood             Int      @default(5) // 0-10
+  energy           Int      @default(5) // 0-10
+  focus            Int      @default(5) // 0-10
+  sleepHours       Float    @default(7.0)
+  exercise         Boolean  @default(false)
+  nutrition        Int      @default(5) // 0-10
+  screenTimeHours  Float    @default(4.0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_checkins")
+}
+
+model JournalEntry {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areaId    String?
+  area      LifeArea? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  title     String?
+  content   String
+  date      String    // Format YYYY-MM-DD
+  mood      Int?      // 0-10
+  tags      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, date])
+  @@map("journal_entries")
+}
+
+model Decision {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  context         String
+  decision        String
+  reason          String
+  alternatives    String?
+  expectedOutcome String?
+  actualOutcome   String?
+  learnings       String?
+  date            String    // Format YYYY-MM-DD
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, date])
+  @@map("decisions")
+}
+
+model Plan {
+  id              String     @id @default(uuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId          String?
+  goal            Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  title           String
+  objective       String
+  reason          String
+  expectedResult  String
+  deadline        DateTime?
+  indicators      String?
+  risks           String?
+  contingencyPlan String?
+  status          String     @default("ACTIVE") // DRAFT, ACTIVE, COMPLETED, ARCHIVED
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  steps           PlanStep[]
+
+  @@index([userId])
+  @@map("plans")
+}
+
+model PlanStep {
+  id           String    @id @default(uuid())
+  planId       String
+  plan         Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  stepNumber   Int
+  title        String
+  description  String?
+  timeWindow   String?   // e.g., "Segunda-feira 19:00 - 19:30"
+  howToExecute String?
+  status       String    @default("PENDING") // PENDING, COMPLETED
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([planId])
+  @@map("plan_steps")
+}
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String      @default("Conversa com Atlas AI")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  messages  AIMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // user, assistant, system
+  content        String
+  contextUsed    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+model TimelineEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // JOURNAL, CHECKIN, GOAL_CREATED, GOAL_COMPLETED, PROJECT_CREATED, PROJECT_COMPLETED, TASK_COMPLETED, DECISION, PLAN_CREATED, CUSTOM
+  title       String
+  description String?
+  entityId    String?
+  date        DateTime @default(now())
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("timeline_events")
+}
