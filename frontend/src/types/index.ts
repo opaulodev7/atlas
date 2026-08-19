@@ -220,6 +220,22 @@ export interface SuggestedPlan {
   steps: SuggestedPlanStep[];
 }
 
+export interface SuggestedTask {
+  title: string;
+  description?: string;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  deadline?: string; // YYYY-MM-DD
+  areaName?: string;
+}
+
+export interface SuggestedHabit {
+  name: string;
+  description?: string;
+  frequency?: 'DAILY' | 'WEEKDAYS' | 'WEEKENDS' | 'WEEKLY';
+  target?: string;
+  areaName?: string;
+}
+
 export interface TimelineEvent {
   id: string;
   userId: string;
@@ -278,6 +294,8 @@ export interface AIMessage {
   content: string;
   createdAt: string;
   suggestedPlan?: SuggestedPlan | null;
+  suggestedTasks?: SuggestedTask[] | null;
+  suggestedHabits?: SuggestedHabit[] | null;
   contextUsed?: string | null;
 }
 

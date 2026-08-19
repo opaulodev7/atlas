@@ -133,6 +133,8 @@ export class AIService {
       assistantMessage: assistantMsg,
       provider: aiResponse.provider,
       suggestedPlan: aiResponse.suggestedPlan,
+      suggestedTasks: aiResponse.suggestedTasks,
+      suggestedHabits: aiResponse.suggestedHabits,
     };
   }
 

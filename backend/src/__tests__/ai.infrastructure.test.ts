@@ -213,17 +213,358 @@ describe('AI Infrastructure Multi-Provider & Resilience Tests (OpenAI + Gemini +
         global.fetch = originalFetch;
       }
     });
+
+    it('should extract structured atlas-plan block and clean content for Gemini', async () => {
+      const rawTextWithAtlasPlan = `Aqui está seu plano de ação para os próximos dias:
+
+### 📋 Cronograma de Execução
+1. Estudo inicial na segunda-feira.
+
+\`\`\`atlas-plan
+{
+  "title": "Plano de Estudo TypeScript",
+  "objective": "Aprender TypeScript em 7 dias",
+  "reason": "Capacitação técnica para o Atlas",
+  "expectedResult": "Domínio de interfaces e types",
+  "indicators": "Testes passando",
+  "risks": "Falta de tempo",
+  "contingencyPlan": "Estudar no sábado",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "title": "Fundamentos",
+      "timeWindow": "Dia 1: 09h00–10h00",
+      "howToExecute": "Ler documentação oficial"
+    }
+  ]
+}
+\`\`\``;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: rawTextWithAtlasPlan }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Crie um plano' }]);
+        
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedPlan).toBeDefined();
+        expect(res.suggestedPlan?.title).toBe('Plano de Estudo TypeScript');
+        expect(res.suggestedPlan?.steps.length).toBe(1);
+        expect(res.suggestedPlan?.steps[0].timeWindow).toBe('Dia 1: 09h00–10h00');
+        expect(res.content).not.toContain('```atlas-plan');
+        expect(res.content).toContain('Aqui está seu plano de ação');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    // Phase 5C Test 1: Only Tasks extraction
+    it('should extract structured atlas-tasks block and clean content for Gemini', async () => {
+      const rawTextWithTasks = `Aqui estão 2 tarefas prioritárias para hoje:
+
+1. Configurar tsconfig
+2. Criar testes
+
+\`\`\`atlas-tasks
+[
+  {
+    "title": "Configurar tipos estritos no tsconfig",
+    "description": "Ativar strict e noImplicitAny",
+    "priority": "HIGH",
+    "deadline": "2026-08-19",
+    "areaName": "Carreira"
+  },
+  {
+    "title": "Escrever testes de unidade para Gemini",
+    "priority": "URGENT",
+    "areaName": "Estudos"
+  }
+]
+\`\`\``;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: rawTextWithTasks }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Crie tarefas para mim' }]);
+
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedTasks).toBeDefined();
+        expect(res.suggestedTasks?.length).toBe(2);
+        expect(res.suggestedTasks?.[0].title).toBe('Configurar tipos estritos no tsconfig');
+        expect(res.suggestedTasks?.[0].priority).toBe('HIGH');
+        expect(res.suggestedTasks?.[0].deadline).toBe('2026-08-19');
+        expect(res.suggestedTasks?.[1].title).toBe('Escrever testes de unidade para Gemini');
+        expect(res.suggestedTasks?.[1].priority).toBe('URGENT');
+        expect(res.content).not.toContain('```atlas-tasks');
+        expect(res.content).toContain('Aqui estão 2 tarefas prioritárias');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    // Phase 5C Test 2: Only Habits extraction
+    it('should extract structured atlas-habits block and clean content for Gemini', async () => {
+      const rawTextWithHabits = `Recomendo este hábito para manter sua consistência:
+
+\`\`\`atlas-habits
+[
+  {
+    "name": "Leitura Técnica Diária",
+    "description": "Ler 30 minutos logo após o café",
+    "frequency": "DAILY",
+    "target": "30 min",
+    "areaName": "Estudos"
+  }
+]
+\`\`\``;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: rawTextWithHabits }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Sugira um hábito' }]);
+
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedHabits).toBeDefined();
+        expect(res.suggestedHabits?.length).toBe(1);
+        expect(res.suggestedHabits?.[0].name).toBe('Leitura Técnica Diária');
+        expect(res.suggestedHabits?.[0].target).toBe('30 min');
+        expect(res.suggestedHabits?.[0].frequency).toBe('DAILY');
+        expect(res.content).not.toContain('```atlas-habits');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    // Phase 5C Test 3: Tasks + Habits in the same response
+    it('should extract both atlas-tasks and atlas-habits from the same response', async () => {
+      const rawTextWithBoth = `Aqui está o resumo da sua rotina proposta:
+
+\`\`\`atlas-tasks
+[
+  {
+    "title": "Revisar PRs do time",
+    "priority": "HIGH",
+    "areaName": "Carreira"
+  }
+]
+\`\`\`
+
+\`\`\`atlas-habits
+[
+  {
+    "name": "Meditação Matinal",
+    "frequency": "DAILY",
+    "target": "10 min",
+    "areaName": "Saúde"
+  }
+]
+\`\`\``;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: rawTextWithBoth }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Organize minha rotina' }]);
+
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedTasks?.length).toBe(1);
+        expect(res.suggestedTasks?.[0].title).toBe('Revisar PRs do time');
+        expect(res.suggestedHabits?.length).toBe(1);
+        expect(res.suggestedHabits?.[0].name).toBe('Meditação Matinal');
+        expect(res.content).not.toContain('```atlas-tasks');
+        expect(res.content).not.toContain('```atlas-habits');
+        expect(res.content).toContain('Aqui está o resumo');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    // Phase 5C Test 4: Normal conversational response without actionable entities
+    it('should return undefined for suggestedPlan, suggestedTasks, suggestedHabits on plain conversation', async () => {
+      const plainText = `### Reflexão do Dia
+Hoje sua energia foi consistente e o sono foi reparador. Continue mantendo esse ritmo.`;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: plainText }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Como estou hoje?' }]);
+
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedPlan).toBeUndefined();
+        expect(res.suggestedTasks).toBeUndefined();
+        expect(res.suggestedHabits).toBeUndefined();
+        expect(res.content).toBe(plainText);
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    // Phase 5C Test 5: Invalid JSON handling in atlas-tasks/atlas-habits
+    it('should safely handle invalid JSON inside atlas-tasks or atlas-habits without breaking chat', async () => {
+      const rawTextWithCorruptedTags = `Aqui está a resposta:
+
+\`\`\`atlas-tasks
+[ { "title": "Quebrado", incomplete...
+\`\`\`
+
+\`\`\`atlas-habits
+[ { "name": 12345 } ]
+\`\`\``;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: rawTextWithCorruptedTags }],
+                  role: 'model',
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      ) as any;
+
+      try {
+        const provider = new GeminiProvider('valid-key', 'gemini-1.5-flash');
+        const res = await provider.chat([{ role: 'user', content: 'Teste corrupção' }]);
+
+        expect(res.provider).toBe('gemini');
+        expect(res.suggestedTasks).toBeUndefined();
+        expect(res.suggestedHabits).toBeUndefined();
+        expect(res.content).toContain('Aqui está a resposta');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
   });
 
-  describe('I. OpenAIProvider Continues Working', () => {
-    it('should properly format and execute chat completion for OpenAI', async () => {
+  describe('I. OpenAIProvider Continues Working & Extracts Actionable Blocks', () => {
+    it('should properly format, execute chat completion and extract atlas-tasks for OpenAI', async () => {
+      const rawTextWithTasks = `Aqui estão suas tarefas:
+
+\`\`\`atlas-tasks
+[
+  {
+    "title": "Escrever documentação",
+    "priority": "MEDIUM",
+    "areaName": "Carreira"
+  }
+]
+\`\`\``;
+
       const originalFetch = global.fetch;
       global.fetch = jest.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
             choices: [
               {
-                message: { content: 'Resposta OpenAI validada com sucesso.' },
+                message: { content: rawTextWithTasks },
               },
             ],
           }),
@@ -236,9 +577,11 @@ describe('AI Infrastructure Multi-Provider & Resilience Tests (OpenAI + Gemini +
 
       try {
         const provider = new OpenAIProvider('sk-test-key', 'gpt-4o-mini');
-        const res = await provider.chat([{ role: 'user', content: 'Teste OpenAI' }]);
+        const res = await provider.chat([{ role: 'user', content: 'Crie tarefas' }]);
         expect(res.provider).toBe('openai');
-        expect(res.content).toContain('Resposta OpenAI');
+        expect(res.suggestedTasks?.length).toBe(1);
+        expect(res.suggestedTasks?.[0].title).toBe('Escrever documentação');
+        expect(res.content).not.toContain('```atlas-tasks');
       } finally {
         global.fetch = originalFetch;
       }
@@ -255,7 +598,6 @@ describe('AI Infrastructure Multi-Provider & Resilience Tests (OpenAI + Gemini +
     });
 
     it('should execute end-to-end AIService fallback gracefully when configured provider fails', async () => {
-      // Configure Gemini with a failing key to simulate API outage
       config.ai.provider = 'gemini';
       config.ai.apiKey = 'failing-key';
 
@@ -269,7 +611,6 @@ describe('AI Infrastructure Multi-Provider & Resilience Tests (OpenAI + Gemini +
         expect(result.provider).toBe('atlas-intelligent-fallback');
       } finally {
         global.fetch = originalFetch;
-        // Reset configuration to clean state
         config.ai.provider = 'gemini';
         config.ai.apiKey = '';
       }
